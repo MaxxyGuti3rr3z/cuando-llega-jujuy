@@ -14,7 +14,11 @@ Real del Transporte Urbano, sin implementar.
 ## Fases
 
 - **Fase 0 (ESTE REPO, funcionando):** recorridos y paradas estáticos desde
-  OpenStreetMap (59 relaciones, 838 paradas al 20/11/2026), API + mapa web.
+  OpenStreetMap (59 relaciones, 926 paradas al 20/11/2026), API + mapa web.
+- **Fase 0.5 (HECHA):** asociación espacial paradas↔recorridos (umbral 25 m):
+  195 → 6.347 asociaciones; 829/926 paradas con línea; 59/59 sentidos con
+  paradas ordenadas por proyección sobre el trazado. Caso testigo: línea 48
+  pasó de 6 a 119 paradas (Moovit declara 123 para la 48I: validación externa).
 - **Fase 1:** reportes colaborativos por parada ("pasó el 29", "va colmado",
   "no viene hace 40 min") → frecuencia real estimada por franja horaria.
   Backend SQLite + POST /api/reportes, moderación básica anti-spam.
@@ -37,7 +41,9 @@ Real del Transporte Urbano, sin implementar.
 py -3.13 -m venv venv
 venv\Scripts\python.exe -m pip install -r requirements.txt
 venv\Scripts\python.exe src\descargar_osm.py     # regenera datos/ desde OSM
+venv\Scripts\python.exe src\asociar_paradas.py   # asocia paradas a recorridos (25 m)
 venv\Scripts\python.exe pruebas\test_datos.py    # valida los datos
+venv\Scripts\python.exe pruebas\test_asociacion.py
 venv\Scripts\python.exe src\api.py               # http://127.0.0.1:8100
 ```
 
@@ -45,6 +51,7 @@ venv\Scripts\python.exe src\api.py               # http://127.0.0.1:8100
 
 ```
 src/descargar_osm.py   pipeline Overpass → datos/*.json + GeoJSON
+src/asociar_paradas.py match espacial parada↔trazado (<=25 m) + orden por proyección
 src/api.py             FastAPI: /api/estado /api/lineas /api/lineas/{ref}
                        /api/paradas /api/recorridos.geojson + web estática
 web/index.html         mapa Leaflet: elegir línea, ver recorridos ida/vuelta
@@ -65,9 +72,11 @@ pruebas/test_datos.py  validación de integridad/coordenadas/conteos
 
 ## Roadmap inmediato
 
-1. Validar recorridos OSM contra la realidad post-reestructuración (líneas que
-   cambiaron de empresa en ago-2026; ej. línea 29 de Mariano Moreno).
-2. Fase 1: reportes colaborativos (empezar con 2-3 líneas de alto tráfico).
-3. Contacto institucional: concejal Gustavo Martínez (ordenanza jul-2026) y
+1. ~~Asociación espacial paradas↔recorridos~~ HECHA (21/11/2026).
+2. Validar recorridos OSM contra la realidad post-reestructuración (líneas que
+   cambiaron de empresa en ago-2026; ej. línea 29 de Mariano Moreno, ausente
+   en OSM; línea 21 figura aún con operador Xibi-Xibi histórico).
+3. Fase 1: reportes colaborativos (empezar con 2-3 líneas de alto tráfico).
+4. Contacto institucional: concejal Gustavo Martínez (ordenanza jul-2026) y
    municipio (Programa de Transformación Digital).
-4. Difusión con la comunidad: JujuyDev, centros vecinales, UNJu.
+5. Difusión con la comunidad: JujuyDev, centros vecinales, UNJu.

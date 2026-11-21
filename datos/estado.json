@@ -19,5 +19,13 @@
   "Xibi-Xibi (histórico)"
  ],
  "fase": 0,
- "nota": "Datos estáticos de recorridos y paradas. Sin tiempo real todavía."
+ "nota": "Datos estáticos de recorridos y paradas. Sin tiempo real todavía.",
+ "asociacion_paradas": {
+  "fecha": "2026-11-21T12:10:43+00:00",
+  "umbral_m": 25.0,
+  "asociaciones_antes": 195,
+  "asociaciones_despues": 6347,
+  "paradas_con_al_menos_una_linea": 829,
+  "sentidos_sin_paradas": 0
+ }
 }
