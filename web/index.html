@@ -3,54 +3,97 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cuándo Llega Jujuy — fase 0</title>
+<title>Cuándo Llega Jujuy</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  :root { --azul:#2563eb; --ambar:#f59e0b; --fondo:#0f172a; --panel:#1e293b; --texto:#e2e8f0; }
+  :root {
+    --ida:#0052d9; --vuelta:#ff6d00;
+    --fondo:#0f172a; --panel:#1e293b; --texto:#e2e8f0;
+    --tarjeta-fondo:#ffffff; --tarjeta-texto:#1e293b;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: var(--fondo); color: var(--texto);
          display: flex; flex-direction: column; height: 100vh; }
   header { padding: 10px 14px; background: var(--panel); display: flex; flex-wrap: wrap;
-           gap: 10px; align-items: center; }
-  header h1 { font-size: 1.05rem; }
-  header .sub { font-size: .75rem; color: #94a3b8; }
-  select { background: var(--fondo); color: var(--texto); border: 1px solid #334155;
-           border-radius: 6px; padding: 6px 8px; font-size: .9rem; max-width: 340px; }
-  #info { font-size: .78rem; color: #94a3b8; padding: 4px 14px; background: var(--panel); }
-  #map { flex: 1; }
-  footer { font-size: .7rem; color: #64748b; padding: 6px 14px; background: var(--panel); }
+           gap: 10px; align-items: center; border-bottom: 2px solid #334155; }
+  header h1 { font-size: 1.1rem; letter-spacing: .2px; }
+  header .sub { font-size: .72rem; color: #94a3b8; margin-top: 2px; }
+  .selector { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+  select#linea { background: var(--fondo); color: var(--texto); border: 1px solid #475569;
+           border-radius: 8px; padding: 8px 10px; font-size: .9rem; max-width: 360px; cursor: pointer; }
+  select#linea:focus { outline: 2px solid var(--ida); }
+  #limpiar { background: #334155; color: var(--texto); border: 0; border-radius: 8px;
+             padding: 8px 11px; font-size: .9rem; cursor: pointer; display: none; }
+  #limpiar:hover { background: #475569; }
+  #contenedor { position: relative; flex: 1; min-height: 0; }
+  #map { position: absolute; inset: 0; background: #e8ecf1; }
+  /* mapa base OSM en gris claro (sin API key ni marcas de agua): máximo contraste */
+  .leaflet-tile-pane { filter: grayscale(1) brightness(1.06) contrast(.92); }
+  /* las rutas y paradas resaltan sobre el mapa gris claro */
+  .leaflet-interactive { filter: drop-shadow(0 1px 2px rgba(15,23,42,.45)); }
+  #tarjeta { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 300px;
+             background: var(--tarjeta-fondo); color: var(--tarjeta-texto);
+             border-radius: 12px; padding: 14px; box-shadow: 0 4px 18px rgba(15,23,42,.35); }
+  #tarjeta .ref { display: inline-block; background: var(--ida); color: #fff; font-weight: 700;
+                  border-radius: 8px; padding: 3px 10px; font-size: 1rem; margin-right: 6px; }
+  #tarjeta .op { display: inline-block; font-size: .68rem; font-weight: 600; color: #fff;
+                 border-radius: 20px; padding: 3px 9px; vertical-align: middle; }
+  #tarjeta h2 { font-size: .92rem; margin: 8px 0 6px; line-height: 1.3; }
+  #tarjeta .sentido { font-size: .78rem; color: #475569; margin: 3px 0; }
+  #tarjeta .datos { font-size: .75rem; color: #64748b; margin-top: 8px;
+                    border-top: 1px solid #e2e8f0; padding-top: 8px; }
+  .leyenda { display: flex; gap: 14px; margin-top: 8px; font-size: .75rem; color: #334155;
+             align-items: center; flex-wrap: wrap; }
+  .muestra { display: inline-block; width: 26px; height: 5px; border-radius: 3px;
+             vertical-align: middle; margin-right: 5px; }
+  .muestra.ida { background: var(--ida); }
+  .muestra.vuelta { background: repeating-linear-gradient(90deg, var(--vuelta) 0 7px, transparent 7px 12px); }
+  #tarjeta .tip { font-size: .72rem; color: #0052d9; margin-top: 8px; font-weight: 600; }
+  footer { font-size: .68rem; color: #64748b; padding: 6px 14px; background: var(--panel); }
   footer a { color: #94a3b8; }
   .leaflet-popup-content { font-size: .85rem; }
   .rep { margin-top: 6px; }
   .rep-botones { display: flex; gap: 4px; margin: 4px 0; flex-wrap: wrap; align-items: center; }
-  .rep button { background: #2563eb; color: #fff; border: 0; border-radius: 5px;
-                padding: 5px 7px; font-size: .75rem; cursor: pointer; }
-  .rep button:hover { background: #1d4ed8; }
+  .rep button { background: var(--ida); color: #fff; border: 0; border-radius: 6px;
+                padding: 6px 9px; font-size: .76rem; cursor: pointer; font-weight: 600; }
+  .rep button:hover { background: #003ea5; }
   .rep select { background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
                 border-radius: 5px; font-size: .75rem; padding: 3px; }
   .rep-msg { font-size: .75rem; color: #64748b; margin: 3px 0; }
   .rep-frec { font-size: .75rem; color: #b45309; margin: 3px 0; }
   .rep-ul { margin: 2px 0 0 14px; font-size: .72rem; color: #475569; }
+  @media (max-width: 640px) {
+    .selector { margin-left: 0; width: 100%; }
+    select#linea { flex: 1; max-width: none; }
+    #tarjeta { top: auto; bottom: 10px; left: 10px; right: 10px; width: auto;
+               max-height: 42%; overflow-y: auto; padding: 11px; }
+  }
 </style>
 </head>
 <body>
 <header>
   <div>
     <h1>🚌 Cuándo Llega Jujuy</h1>
-    <div class="sub">Fase 1 · datos abiertos OSM + reportes colaborativos de vecinos</div>
+    <div class="sub">Datos abiertos OSM + reportes colaborativos de vecinos</div>
   </div>
-  <select id="linea"><option value="">Elegí una línea…</option></select>
+  <div class="selector">
+    <select id="linea"><option value="">Elegí una línea…</option></select>
+    <button id="limpiar" title="Quitar selección">✕</button>
+  </div>
 </header>
-<div id="info">Cargando datos…</div>
-<div id="map"></div>
+<div id="contenedor">
+  <div id="map"></div>
+  <div id="tarjeta">Cargando datos…</div>
+</div>
 <footer>
   Datos © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) ·
   <a href="https://wiki.openstreetmap.org/wiki/Jujuy/transporte_publico">mapeo comunitario Jujuy</a> ·
-  Proyecto cívico · los reportes son de vecinos, no de las empresas.
+  Los reportes son de vecinos, no de las empresas.
 </footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const map = L.map('map').setView([-24.185, -65.30], 13);
+const map = L.map('map', { zoomControl: true }).setView([-24.185, -65.30], 13);
+// Mapa base OSM atenuado a gris por CSS (ver .leaflet-tile-pane): sin API key
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap contributors'
@@ -59,16 +102,40 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let capaLinea = null;
 let PARADAS = {};
 let LINEA_ACTUAL = null;
-const COLOR = { ida: '#2563eb', vuelta: '#f59e0b' };
+let ESTADO = null;
+const COLOR = { ida: '#0052d9', vuelta: '#ff6d00' };
+const OP_COLOR = { 'Santa Ana': '#dc2626', 'El Urbano': '#0052d9' };
+const tarjeta = document.getElementById('tarjeta');
+const btnLimpiar = document.getElementById('limpiar');
+
+function opChip(op) {
+  const c = OP_COLOR[op] || '#64748b';
+  return `<span class="op" style="background:${c}">${op}</span>`;
+}
+function leyenda() {
+  return `<div class="leyenda">
+    <span><span class="muestra ida"></span>ida</span>
+    <span><span class="muestra vuelta"></span>vuelta</span>
+  </div>`;
+}
+function tarjetaInicio() {
+  const e = ESTADO;
+  tarjeta.innerHTML = `
+    <h2>👋 Elegí una línea arriba</h2>
+    <div class="sentido">Vas a ver el recorrido completo (ida y vuelta) y todas
+    las paradas. Tocá una parada para reportar si pasó el cole, si va colmado
+    o si no viene.</div>
+    ${e ? `<div class="datos">${e.lineas} líneas · ${e.paradas} paradas ·
+    datos OSM del ${e.generado.slice(0,10)}</div>` : ''}`;
+}
 
 fetch('/api/paradas').then(r => r.json()).then(ps => {
   ps.forEach(p => PARADAS[p.id] = p);
 });
 
 fetch('/api/estado').then(r => r.json()).then(e => {
-  document.getElementById('info').textContent =
-    `${e.lineas} líneas · ${e.sentidos_con_geometria} recorridos · ${e.paradas} paradas · ` +
-    `actualizado ${e.generado.slice(0,10)} · fuente: OSM (${e.licencia})`;
+  ESTADO = e;
+  if (!LINEA_ACTUAL) tarjetaInicio();
 });
 
 fetch('/api/lineas').then(r => r.json()).then(ls => {
@@ -87,6 +154,11 @@ fetch('/api/lineas').then(r => r.json()).then(ls => {
     sel.lastChild.appendChild(o);
   });
   sel.addEventListener('change', () => mostrarLinea(sel.value));
+});
+
+btnLimpiar.addEventListener('click', () => {
+  document.getElementById('linea').value = '';
+  mostrarLinea('');
 });
 
 function haceMin(ts) {
@@ -164,30 +236,43 @@ function cargarFrecuencia(pid, ref, el) {
 
 function mostrarLinea(ref) {
   LINEA_ACTUAL = ref || null;
+  btnLimpiar.style.display = ref ? 'block' : 'none';
   if (capaLinea) { map.removeLayer(capaLinea); capaLinea = null; }
-  if (!ref) return;
+  if (!ref) { tarjetaInicio(); return; }
   fetch('/api/lineas/' + encodeURIComponent(ref)).then(r => r.json()).then(l => {
     capaLinea = L.layerGroup();
     const bounds = [];
+    // 1) recorridos: halo blanco (casing) + color intenso encima
     l.sentidos.forEach((s, i) => {
       const color = i === 0 ? COLOR.ida : COLOR.vuelta;
-      const dash = i === 0 ? null : '6 6';
-      L.polyline(s.geo, { color, weight: 4, opacity: .85, dashArray: dash })
+      L.polyline(s.geo, { color: '#ffffff', weight: 10, opacity: .95, interactive: false })
+        .addTo(capaLinea);
+      L.polyline(s.geo, { color, weight: 5.5, opacity: 1, dashArray: i === 0 ? null : '12 9' })
         .bindPopup(`<b>${l.ref}</b> ${s.from} → ${s.to}<br><small>${l.operador}</small>`)
         .addTo(capaLinea);
       bounds.push(...s.geo);
+    });
+    // 2) paradas encima de las rutas: anillo grueso de color + centro blanco
+    l.sentidos.forEach((s, i) => {
+      const color = i === 0 ? COLOR.ida : COLOR.vuelta;
       s.paradas.forEach(pid => {
         const p = PARADAS[pid];
         if (!p) return;
-        L.circleMarker([p.lat, p.lon], { radius: 5, color, fillColor: '#fff', fillOpacity: .9, weight: 2 })
-          .bindPopup(() => contenedorParada(pid), { maxWidth: 300 }).addTo(capaLinea);
+        L.circleMarker([p.lat, p.lon], {
+          radius: 6.5, color, fillColor: '#ffffff', fillOpacity: 1, weight: 3.5
+        }).bindPopup(() => contenedorParada(pid), { maxWidth: 300 }).addTo(capaLinea);
       });
     });
     capaLinea.addTo(map);
-    if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
-    document.getElementById('info').textContent =
-      `${l.nombre} · ${l.operador} · ${l.sentidos.length} sentido(s) · ` +
-      `azul = ida, ámbar = vuelta · tocá una parada para ver qué líneas pasan`;
+    if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+    const paradasUnicas = new Set(l.sentidos.flatMap(s => s.paradas)).size;
+    tarjeta.innerHTML = `
+      <span class="ref">${l.ref}</span>${opChip(l.operador)}
+      <h2>${l.nombre.replace(/^Línea \S+: /, '')}</h2>
+      ${l.sentidos.map((s, i) => `<div class="sentido">${i === 0 ? '🔵' : '🟠'} ${s.from} → ${s.to}</div>`).join('')}
+      ${leyenda()}
+      <div class="datos">${paradasUnicas} paradas · ${l.sentidos.length} sentido(s)</div>
+      <div class="tip">💡 Tocá una parada para reportar</div>`;
   });
 }
 </script>
