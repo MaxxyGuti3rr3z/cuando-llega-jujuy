@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuándo Llega Jujuy — fase 0</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --azul:#2563eb; --ambar:#f59e0b; --fondo:#0f172a; --panel:#1e293b; --texto:#e2e8f0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: var(--fondo); color: var(--texto);
+         display: flex; flex-direction: column; height: 100vh; }
+  header { padding: 10px 14px; background: var(--panel); display: flex; flex-wrap: wrap;
+           gap: 10px; align-items: center; }
+  header h1 { font-size: 1.05rem; }
+  header .sub { font-size: .75rem; color: #94a3b8; }
+  select { background: var(--fondo); color: var(--texto); border: 1px solid #334155;
+           border-radius: 6px; padding: 6px 8px; font-size: .9rem; max-width: 340px; }
+  #info { font-size: .78rem; color: #94a3b8; padding: 4px 14px; background: var(--panel); }
+  #map { flex: 1; }
+  footer { font-size: .7rem; color: #64748b; padding: 6px 14px; background: var(--panel); }
+  footer a { color: #94a3b8; }
+  .leaflet-popup-content { font-size: .85rem; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>🚌 Cuándo Llega Jujuy</h1>
+    <div class="sub">Fase 0 · recorridos y paradas de datos abiertos (OSM) · sin tiempo real aún</div>
+  </div>
+  <select id="linea"><option value="">Elegí una línea…</option></select>
+</header>
+<div id="info">Cargando datos…</div>
+<div id="map"></div>
+<footer>
+  Datos © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) ·
+  <a href="https://wiki.openstreetmap.org/wiki/Jujuy/transporte_publico">mapeo comunitario Jujuy</a> ·
+  Proyecto cívico — fase 1: reportes colaborativos de frecuencia.
+</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([-24.185, -65.30], 13);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+let capaLinea = null;
+let PARADAS = {};
+const COLOR = { ida: '#2563eb', vuelta: '#f59e0b' };
+
+fetch('/api/paradas').then(r => r.json()).then(ps => {
+  ps.forEach(p => PARADAS[p.id] = p);
+});
+
+fetch('/api/estado').then(r => r.json()).then(e => {
+  document.getElementById('info').textContent =
+    `${e.lineas} líneas · ${e.sentidos_con_geometria} recorridos · ${e.paradas} paradas · ` +
+    `actualizado ${e.generado.slice(0,10)} · fuente: OSM (${e.licencia})`;
+});
+
+fetch('/api/lineas').then(r => r.json()).then(ls => {
+  const sel = document.getElementById('linea');
+  let opActual = '';
+  ls.forEach(l => {
+    if (l.operador !== opActual) {
+      const og = document.createElement('optgroup');
+      og.label = l.operador;
+      sel.appendChild(og);
+      opActual = l.operador;
+    }
+    const o = document.createElement('option');
+    o.value = l.ref;
+    o.textContent = `${l.ref} — ${l.nombre.replace(/^Línea \S+: /, '')}`;
+    sel.lastChild.appendChild(o);
+  });
+  sel.addEventListener('change', () => mostrarLinea(sel.value));
+});
+
+function popupParada(pid) {
+  const p = PARADAS[pid];
+  if (!p) return `Parada ${pid}`;
+  const otras = (p.lineas || []).join(', ');
+  return `<b>${p.nombre}</b><br>Líneas: ${otras || '—'}<br>
+          <small>id OSM ${p.id}</small>`;
+}
+
+function mostrarLinea(ref) {
+  if (capaLinea) { map.removeLayer(capaLinea); capaLinea = null; }
+  if (!ref) return;
+  fetch('/api/lineas/' + encodeURIComponent(ref)).then(r => r.json()).then(l => {
+    capaLinea = L.layerGroup();
+    const bounds = [];
+    l.sentidos.forEach((s, i) => {
+      const color = i === 0 ? COLOR.ida : COLOR.vuelta;
+      const dash = i === 0 ? null : '6 6';
+      L.polyline(s.geo, { color, weight: 4, opacity: .85, dashArray: dash })
+        .bindPopup(`<b>${l.ref}</b> ${s.from} → ${s.to}<br><small>${l.operador}</small>`)
+        .addTo(capaLinea);
+      bounds.push(...s.geo);
+      s.paradas.forEach(pid => {
+        const p = PARADAS[pid];
+        if (!p) return;
+        L.circleMarker([p.lat, p.lon], { radius: 5, color, fillColor: '#fff', fillOpacity: .9, weight: 2 })
+          .bindPopup(popupParada(pid)).addTo(capaLinea);
+      });
+    });
+    capaLinea.addTo(map);
+    if (bounds.length) map.fitBounds(bounds, { padding: [30, 30] });
+    document.getElementById('info').textContent =
+      `${l.nombre} · ${l.operador} · ${l.sentidos.length} sentido(s) · ` +
+      `azul = ida, ámbar = vuelta · tocá una parada para ver qué líneas pasan`;
+  });
+}
+</script>
+</body>
+</html>

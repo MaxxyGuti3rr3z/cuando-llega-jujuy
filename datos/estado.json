@@ -1,0 +1,23 @@
+{
+ "generado": "2026-11-21T12:05:01+00:00",
+ "fuente": "OpenStreetMap contributors (Overpass API)",
+ "licencia": "ODbL 1.0 — atribución obligatoria",
+ "wiki": "https://wiki.openstreetmap.org/wiki/Jujuy/transporte_publico",
+ "bbox": [
+  -24.32,
+  -65.45,
+  -24.08,
+  -65.18
+ ],
+ "lineas": 49,
+ "sentidos_con_geometria": 59,
+ "relaciones_sin_geometria": 0,
+ "paradas": 926,
+ "operadores": [
+  "El Urbano",
+  "Santa Ana",
+  "Xibi-Xibi (histórico)"
+ ],
+ "fase": 0,
+ "nota": "Datos estáticos de recorridos y paradas. Sin tiempo real todavía."
+}
