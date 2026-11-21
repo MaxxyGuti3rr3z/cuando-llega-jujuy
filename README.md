@@ -11,6 +11,11 @@ Real del Transporte Urbano, sin implementar.
 **Estrategia: no depender de la autorización de las empresas.** Datos abiertos
 (OSM) + reportes colaborativos de usuarios.
 
+![Mapa de la línea 40: recorrido ida (azul) y vuelta (naranja), paradas y tarjeta de línea](docs/captura-mapa.png)
+
+> Prototipo funcional que corre en local (sin deploy público todavía).
+> Stack: Python + FastAPI + SQLite + Leaflet. Tests incluidos.
+
 ## Fases
 
 - **Fase 0 (ESTE REPO, funcionando):** recorridos y paradas estáticos desde
@@ -71,7 +76,9 @@ pruebas/test_datos.py  validación de integridad/coordenadas/conteos
 
 ## Contexto y aliados
 
-- Exploración completa: `../jujuy-exploracion/INFORME_JUJUY_PROYECTOS.md` (P1).
+- Nace de una exploración de necesidades locales de Jujuy (nov-2026): el hueco
+  de información de transporte es el más documentado (quejas de usuarios +
+  proyecto de ordenanza jul-2026 para un sistema único en tiempo real).
 - JujuyDev (jujuy.dev.ar, +600 devs): hackathon a bordo del Tren Solar 22/11/2026;
   el registro era por proyectos → este repo es el proyecto para el próximo evento.
 - ColeJUY (Franco Durán): colaborar, no competir — ellos ya tienen comunidad.
@@ -91,3 +98,11 @@ pruebas/test_datos.py  validación de integridad/coordenadas/conteos
 4. Contacto institucional: concejal Gustavo Martínez (ordenanza jul-2026) y
    municipio (Programa de Transformación Digital).
 5. Difusión con la comunidad: JujuyDev, centros vecinales, UNJu.
+
+## Licencia
+
+- **Código:** MIT (ver `LICENSE`).
+- **Datos** (`datos/*.json`, `*.geojson`): © OpenStreetMap contributors,
+  **ODbL 1.0** — atribución obligatoria al reutilizarlos.
+- Los reportes de usuarios son aportes comunitarios; no se almacenan datos
+  personales (solo un hash truncado de IP para anti-spam).
