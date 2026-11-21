@@ -21,13 +21,23 @@
   footer { font-size: .7rem; color: #64748b; padding: 6px 14px; background: var(--panel); }
   footer a { color: #94a3b8; }
   .leaflet-popup-content { font-size: .85rem; }
+  .rep { margin-top: 6px; }
+  .rep-botones { display: flex; gap: 4px; margin: 4px 0; flex-wrap: wrap; align-items: center; }
+  .rep button { background: #2563eb; color: #fff; border: 0; border-radius: 5px;
+                padding: 5px 7px; font-size: .75rem; cursor: pointer; }
+  .rep button:hover { background: #1d4ed8; }
+  .rep select { background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+                border-radius: 5px; font-size: .75rem; padding: 3px; }
+  .rep-msg { font-size: .75rem; color: #64748b; margin: 3px 0; }
+  .rep-frec { font-size: .75rem; color: #b45309; margin: 3px 0; }
+  .rep-ul { margin: 2px 0 0 14px; font-size: .72rem; color: #475569; }
 </style>
 </head>
 <body>
 <header>
   <div>
     <h1>🚌 Cuándo Llega Jujuy</h1>
-    <div class="sub">Fase 0 · recorridos y paradas de datos abiertos (OSM) · sin tiempo real aún</div>
+    <div class="sub">Fase 1 · datos abiertos OSM + reportes colaborativos de vecinos</div>
   </div>
   <select id="linea"><option value="">Elegí una línea…</option></select>
 </header>
@@ -36,7 +46,7 @@
 <footer>
   Datos © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) ·
   <a href="https://wiki.openstreetmap.org/wiki/Jujuy/transporte_publico">mapeo comunitario Jujuy</a> ·
-  Proyecto cívico — fase 1: reportes colaborativos de frecuencia.
+  Proyecto cívico · los reportes son de vecinos, no de las empresas.
 </footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -48,6 +58,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let capaLinea = null;
 let PARADAS = {};
+let LINEA_ACTUAL = null;
 const COLOR = { ida: '#2563eb', vuelta: '#f59e0b' };
 
 fetch('/api/paradas').then(r => r.json()).then(ps => {
@@ -78,15 +89,81 @@ fetch('/api/lineas').then(r => r.json()).then(ls => {
   sel.addEventListener('change', () => mostrarLinea(sel.value));
 });
 
-function popupParada(pid) {
+function haceMin(ts) {
+  const m = Math.max(0, Math.round((Date.now() - new Date(ts).getTime()) / 60000));
+  return m < 1 ? 'recién' : `hace ${m} min`;
+}
+const ICONO = { paso: '🚌 pasó', colmado: '🈵 colmado', demora: '⏳ demora' };
+
+function contenedorParada(pid) {
   const p = PARADAS[pid];
-  if (!p) return `Parada ${pid}`;
-  const otras = (p.lineas || []).join(', ');
-  return `<b>${p.nombre}</b><br>Líneas: ${otras || '—'}<br>
-          <small>id OSM ${p.id}</small>`;
+  const div = document.createElement('div');
+  if (!p) { div.textContent = 'Parada ' + pid; return div; }
+  div.innerHTML = `<b>${p.nombre}</b><br><small>Líneas: ${(p.lineas||[]).join(', ') || '—'}</small><div class="rep"></div>`;
+  const zona = div.querySelector('.rep');
+  const ref = LINEA_ACTUAL;
+  if (ref && (p.lineas||[]).includes(ref)) {
+    zona.innerHTML = `
+      <div class="rep-botones">
+        <button data-tipo="paso">🚌 Pasó ahora</button>
+        <button data-tipo="colmado">🈵 Va colmado</button>
+      </div>
+      <div class="rep-botones">
+        <select class="min-demora"><option value="10">10</option><option value="20" selected>20</option><option value="30">30</option><option value="45">45</option><option value="60">60</option></select>
+        <button data-tipo="demora">⏳ No viene hace… min</button>
+      </div>
+      <div class="rep-msg"></div><div class="rep-frec"></div><div class="rep-lista"></div>`;
+    zona.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      const tipo = b.dataset.tipo;
+      const minutos = tipo === 'demora' ? parseInt(zona.querySelector('.min-demora').value, 10) : null;
+      enviarReporte(pid, ref, tipo, minutos, zona);
+    }));
+    cargarFrecuencia(pid, ref, zona.querySelector('.rep-frec'));
+  } else {
+    zona.innerHTML = '<div class="rep-msg"><small>Elegí una línea que pase por esta parada para reportar.</small></div><div class="rep-lista"></div>';
+  }
+  cargarRecientes(pid, zona.querySelector('.rep-lista'));
+  return div;
+}
+
+function enviarReporte(pid, ref, tipo, minutos, zona) {
+  const msg = zona.querySelector('.rep-msg');
+  msg.textContent = 'Enviando…';
+  fetch('/api/reportes', { method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ parada_id: pid, linea_ref: ref, tipo, minutos }) })
+    .then(async r => {
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'error');
+      msg.textContent = '✓ ¡Gracias! Tu reporte ayuda a todos.';
+      cargarRecientes(pid, zona.querySelector('.rep-lista'));
+      cargarFrecuencia(pid, ref, zona.querySelector('.rep-frec'));
+    })
+    .catch(e => { msg.textContent = '⚠ ' + e.message; });
+}
+
+function cargarRecientes(pid, el) {
+  fetch(`/api/reportes?parada_id=${pid}&ventana=120`).then(r=>r.json()).then(rs => {
+    if (!rs.length) { el.innerHTML = '<small>Sin reportes recientes. ¡Sé el primero!</small>'; return; }
+    el.innerHTML = '<small><b>Reportes (2 h):</b></small><ul class="rep-ul">' +
+      rs.slice(0,6).map(r => `<li>${ICONO[r.tipo]||r.tipo} la ${r.linea_ref}${r.minutos?` (${r.minutos} min)`:''} · ${haceMin(r.ts)}</li>`).join('') + '</ul>';
+  });
+}
+
+function cargarFrecuencia(pid, ref, el) {
+  if (!el) return;
+  fetch(`/api/frecuencia/${encodeURIComponent(ref)}?parada_id=${pid}`).then(r=>r.json()).then(f => {
+    if (f.intervalo_mediano_min != null) {
+      el.innerHTML = `<small>📊 Frecuencia estimada: <b>~${f.intervalo_mediano_min} min</b> (${f.reportes_paso} reportes "pasó", 3 h)</small>`;
+    } else if (f.minutos_desde_ultimo_paso != null) {
+      el.innerHTML = `<small>Último "pasó" ${haceMin(f.ultimo_paso)} · faltan reportes para estimar frecuencia</small>`;
+    } else {
+      el.innerHTML = '';
+    }
+  });
 }
 
 function mostrarLinea(ref) {
+  LINEA_ACTUAL = ref || null;
   if (capaLinea) { map.removeLayer(capaLinea); capaLinea = null; }
   if (!ref) return;
   fetch('/api/lineas/' + encodeURIComponent(ref)).then(r => r.json()).then(l => {
@@ -103,7 +180,7 @@ function mostrarLinea(ref) {
         const p = PARADAS[pid];
         if (!p) return;
         L.circleMarker([p.lat, p.lon], { radius: 5, color, fillColor: '#fff', fillOpacity: .9, weight: 2 })
-          .bindPopup(popupParada(pid)).addTo(capaLinea);
+          .bindPopup(() => contenedorParada(pid), { maxWidth: 300 }).addTo(capaLinea);
       });
     });
     capaLinea.addTo(map);

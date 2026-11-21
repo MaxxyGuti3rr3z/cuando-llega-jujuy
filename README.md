@@ -19,9 +19,14 @@ Real del Transporte Urbano, sin implementar.
   195 → 6.347 asociaciones; 829/926 paradas con línea; 59/59 sentidos con
   paradas ordenadas por proyección sobre el trazado. Caso testigo: línea 48
   pasó de 6 a 119 paradas (Moovit declara 123 para la 48I: validación externa).
-- **Fase 1:** reportes colaborativos por parada ("pasó el 29", "va colmado",
-  "no viene hace 40 min") → frecuencia real estimada por franja horaria.
-  Backend SQLite + POST /api/reportes, moderación básica anti-spam.
+- **Fase 1 (HECHA, 21/11/2026):** reportes colaborativos por parada:
+  "🚌 Pasó ahora", "🈵 Va colmado", "⏳ No viene hace X min". SQLite
+  (datos/reportes.db), sin login. Anti-spam: 1 reporte/20 s y 40/hora por IP
+  (se guarda solo un hash truncado de la IP, nunca la IP cruda). Frecuencia
+  real estimada = mediana de intervalos entre reportes "paso" (ventana 3 h);
+  con <3 pasos no estima y lo dice ("confianza: insuficiente"). Validado:
+  tests unitarios + API (422 ante línea que no pasa, tipo inválido, rate-limit)
+  + flujo completo en navegador.
 - **Fase 2:** datos oficiales GTFS/GTFS-RT negociados con municipio/empresas
   al calor de la ordenanza; auditoría de cobertura barrio-centro.
 
@@ -44,6 +49,7 @@ venv\Scripts\python.exe src\descargar_osm.py     # regenera datos/ desde OSM
 venv\Scripts\python.exe src\asociar_paradas.py   # asocia paradas a recorridos (25 m)
 venv\Scripts\python.exe pruebas\test_datos.py    # valida los datos
 venv\Scripts\python.exe pruebas\test_asociacion.py
+venv\Scripts\python.exe pruebas\test_reportes.py # validaciones/rate-limit/frecuencia
 venv\Scripts\python.exe src\api.py               # http://127.0.0.1:8100
 ```
 
@@ -52,8 +58,11 @@ venv\Scripts\python.exe src\api.py               # http://127.0.0.1:8100
 ```
 src/descargar_osm.py   pipeline Overpass → datos/*.json + GeoJSON
 src/asociar_paradas.py match espacial parada↔trazado (<=25 m) + orden por proyección
+src/reportes.py        SQLite: reportes, rate-limit por hash de IP, frecuencia
 src/api.py             FastAPI: /api/estado /api/lineas /api/lineas/{ref}
-                       /api/paradas /api/recorridos.geojson + web estática
+                       /api/paradas /api/recorridos.geojson
+                       POST /api/reportes · GET /api/reportes
+                       GET /api/frecuencia/{ref}?parada_id=... + web estática
 web/index.html         mapa Leaflet: elegir línea, ver recorridos ida/vuelta
                        y paradas con las líneas que pasan por cada una
 datos/                 generados (lineas, paradas, recorridos, estado, fuente/)
@@ -76,7 +85,9 @@ pruebas/test_datos.py  validación de integridad/coordenadas/conteos
 2. Validar recorridos OSM contra la realidad post-reestructuración (líneas que
    cambiaron de empresa en ago-2026; ej. línea 29 de Mariano Moreno, ausente
    en OSM; línea 21 figura aún con operador Xibi-Xibi histórico).
-3. Fase 1: reportes colaborativos (empezar con 2-3 líneas de alto tráfico).
+3. ~~Fase 1: reportes colaborativos~~ HECHA (21/11/2026). Siguiente: pilotos
+   con usuarios reales en 2-3 líneas de alto tráfico (48, 40) y difundir en
+   JujuyDev/centros vecinales para juntar masa crítica de reportes.
 4. Contacto institucional: concejal Gustavo Martínez (ordenanza jul-2026) y
    municipio (Programa de Transformación Digital).
 5. Difusión con la comunidad: JujuyDev, centros vecinales, UNJu.
