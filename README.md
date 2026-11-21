@@ -1,5 +1,7 @@
 # Cuándo Llega Jujuy 🚌
 
+[![tests](https://github.com/MaxxyGuti3rr3z/cuando-llega-jujuy/actions/workflows/tests.yml/badge.svg)](https://github.com/MaxxyGuti3rr3z/cuando-llega-jujuy/actions/workflows/tests.yml)
+
 Proyecto cívico de información de transporte público para San Salvador de Jujuy.
 Nace de la exploración de necesidades locales (nov-2026): tras la reestructuración
 de agosto 2026 solo operan **El Urbano** y **Santa Ana**; Xibi Xibi (la única con
